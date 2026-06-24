@@ -276,19 +276,25 @@
   .outreach-lede{font:500 clamp(20px,2.6vw,28px)/1.3 var(--serif); color:var(--text-hi); margin:0 0 14px; max-width:20ch;}
   .outreach-note{font-family:var(--sans); font-size:14px; line-height:1.6; color:var(--text-dim); margin:0 0 24px; max-width:54ch;}
   .form{
-    display:flex; align-items:center; gap:10px; max-width:540px;
-    border:1px solid var(--line); border-radius:12px; padding:5px 5px 5px 16px;
+    display:flex; flex-direction:column; gap:0; max-width:560px;
+    border:1px solid var(--line); border-radius:12px; padding:4px 16px 14px;
     background:rgba(255,255,255,.02); transition:border-color .25s var(--ease);
   }
   .form:focus-within{border-color:rgba(214,177,115,.55);}
+  .form-line{display:flex; align-items:center; gap:10px;}
   .form .gt{color:var(--gold-bright);}
-  .form input{
-    flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--text);
-    font:400 14px/1 var(--mono); padding:13px 0;
+  .form input, .form textarea{
+    flex:1; width:100%; min-width:0; background:transparent; border:none; outline:none; color:var(--text);
+    font:400 14px/1.55 var(--mono);
   }
-  .form input::placeholder{color:var(--text-faint);}
-  .form button{border:none; cursor:pointer; padding:12px 22px; border-radius:8px; background:var(--gold-bright); color:#0A0E1A; font:600 13px/1 var(--mono); transition:background .25s var(--ease), transform .2s var(--ease); white-space:nowrap;}
+  .form input{padding:13px 0;}
+  .form textarea{resize:vertical; min-height:66px; padding:12px 0; border-top:1px solid var(--line-soft);}
+  .form input::placeholder, .form textarea::placeholder{color:var(--text-faint);}
+  .form-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:10px;}
+  .form-hint{font:500 11px/1 var(--mono); letter-spacing:.06em; color:var(--text-faint);}
+  .form button{border:none; cursor:pointer; padding:12px 22px; border-radius:8px; background:var(--gold-bright); color:#0A0E1A; font:600 13px/1 var(--mono); transition:background .25s var(--ease), transform .2s var(--ease), opacity .2s; white-space:nowrap;}
   .form button:hover{background:#F4DBA6;} .form button:active{transform:scale(.98);}
+  .form button:disabled{opacity:.55; cursor:default;}
   .form-msg{min-height:20px; margin:12px 2px 0; font:500 13px/1.4 var(--mono);}
   .form-msg.err{color:#FF9B8A;} .form-msg.ok{color:var(--gold-bright);}
   .socials{display:flex; gap:22px; margin-top:24px; font:500 12px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint);}
@@ -505,10 +511,17 @@
           <p class="outreach-lede">Let's build something that runs <em style="color:var(--gold-bright)">forever.</em></p>
           <p class="outreach-note">For owners, operators, and investors in essential businesses. Tell us what you run — we'll reach out to start a conversation.</p>
           <form class="form" id="connect" novalidate>
-            <span class="gt" aria-hidden="true">&gt;</span>
-            <label for="email" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Your email</label>
-            <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="your_email" aria-describedby="form-msg" required>
-            <button type="submit">send →</button>
+            <div class="form-line">
+              <span class="gt" aria-hidden="true">&gt;</span>
+              <label for="email" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Your email</label>
+              <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="your_email" aria-describedby="form-msg" required>
+            </div>
+            <label for="message" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Your message</label>
+            <textarea id="message" name="message" rows="3" placeholder="your_message — tell us what you run" aria-describedby="form-msg" required></textarea>
+            <div class="form-foot">
+              <span class="form-hint">we read every message.</span>
+              <button type="submit">send →</button>
+            </div>
           </form>
           <p class="form-msg" id="form-msg" role="status" aria-live="polite"></p>
           <div class="socials">
@@ -562,33 +575,56 @@
   typeInto('cmd-flywheel', 'perpetual --loop --forever', 600);
   typeInto('cmd-outreach', './connect --forever', 900);
 
-  /* ---- email capture ----
-     No backend in this static build. Until you wire a real endpoint
-     (Formspree / your API), submissions are routed via mailto: so the lead
-     actually reaches an inbox instead of silently disappearing.
-     TODO(before launch): set CONTACT_EMAIL, or replace the mailto block with
-     a fetch() POST to your form endpoint. */
-  var CONTACT_EMAIL = 'partner@perpetuallabs.ai'; // <-- set to a real inbox
+  /* ---- contact form: email + message -> rashid@perpetual-labs.ai ----
+     Static site, so delivery uses Web3Forms (free, no server): submissions
+     POST to their API and land in the registered inbox WITHOUT the visitor
+     needing a mail client, and your address stays out of the page source.
+     >>> To go fully live: get a free access key at https://web3forms.com
+         (enter rashid@perpetual-labs.ai — they email you a key) and paste it
+         into WEB3FORMS_KEY below.
+     Until a key is set, it falls back to a mailto: compose so nothing is lost. */
+  var WEB3FORMS_KEY = '';                       // <-- paste Web3Forms access key here
+  var CONTACT_EMAIL = 'rashid@perpetual-labs.ai'; // mailto fallback destination
   var form = document.getElementById('connect');
   var msg = document.getElementById('form-msg');
   var input = document.getElementById('email');
+  var message = document.getElementById('message');
+  var btn = form.querySelector('button');
   var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function setMsg(kind, text){ msg.className = 'form-msg ' + kind; msg.textContent = text; }
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var v = (input.value||'').trim();
-    if(!EMAIL.test(v)){
-      msg.className = 'form-msg err';
-      msg.textContent = '✗ that doesn’t look like an email — try again.';
-      input.focus();
-      return;
+    var m = (message.value||'').trim();
+    if(!EMAIL.test(v)){ setMsg('err', '✗ that doesn’t look like an email — try again.'); input.focus(); return; }
+    if(m.length < 2){ setMsg('err', '✗ add a short message so we know what you run.'); message.focus(); return; }
+
+    if(WEB3FORMS_KEY){
+      // Real delivery — message lands in the inbox, no mail client needed.
+      btn.disabled = true; setMsg('ok', 'sending…');
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_KEY,
+          subject: 'Perpetual Labs — new inquiry',
+          from_name: 'Perpetual Labs site',
+          email: v,            // used as reply-to
+          message: m
+        })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        btn.disabled = false;
+        if(d && d.success){ setMsg('ok', '→ sent. we’ll be in touch. // the loop never stops.'); form.reset(); }
+        else { setMsg('err', '✗ couldn’t send — please email us directly.'); }
+      }).catch(function(){ btn.disabled = false; setMsg('err', '✗ network error — try again in a moment.'); });
+    } else {
+      // Fallback with no backend: open the visitor's mail client, pre-filled.
+      var subject = encodeURIComponent('Perpetual Labs — inquiry');
+      var body = encodeURIComponent(m + '\n\n— ' + v);
+      window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + subject + '&body=' + body;
+      setMsg('ok', '→ opening your mail client to send your message…');
+      form.reset();
     }
-    // Route the lead to a real inbox (works with no server).
-    var subject = encodeURIComponent('Perpetual Labs — partnership inquiry');
-    var body = encodeURIComponent('From: ' + v + '\n\nTell us about the business you run:\n');
-    window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + subject + '&body=' + body;
-    msg.className = 'form-msg ok';
-    msg.textContent = '→ opening your mail client… or reach us directly at ' + CONTACT_EMAIL;
-    form.reset();
   });
 
   /* ---- flywheel ticker ---- */
